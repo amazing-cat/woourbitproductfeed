@@ -18,6 +18,30 @@ class UPF_Query
     public function __construct(UPF_Core $core)
     {
         $this->core = $core;
+        add_action( 'wp_ajax_filter_handler', array($this, 'filter_handler') );
+    }
+
+    function filter_handler() {
+        $selectedTags = $_POST['tags'];
+        $selectedCollects = $_POST['collects'];
+        $stock = $_POST['stock'];
+        $result = $_POST['result'];
+        $filter_query = $this->productsQuery(['categories' => $selectedCollects, 'tags' => $selectedTags, 'stock' => $stock]);
+        $product_posts = $filter_query->get_posts();
+        $products = array();
+        $pf = new WC_Product_Factory();
+        foreach ($product_posts as $post)
+        {
+            $temp = $pf->get_product($post);
+            if(!in_array((string)$temp->get_id(), $result))
+                array_push($products, ['product_id' => $temp->get_id(), 'title' => $temp->get_name()]);
+        }
+        $return = array(
+            'message'  => 'Ok!',
+            'result' => $products
+        );
+
+        wp_send_json($return);
     }
 
     /**
