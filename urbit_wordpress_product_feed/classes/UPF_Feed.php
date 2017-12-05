@@ -73,9 +73,9 @@ class UPF_Feed
     {
         $this->core->getCache()->flushAllCacheFiles();
 
-        $query = $this->core->getQuery()->productsQuery($filter);
+        $selectedProducts = $this->core->getConfig()->getSelect("filter/product", []);
 
-        foreach ($query->posts as $productId) {
+        foreach ($selectedProducts as $productId) {
             $this->processProduct(
                 $this->core->getProduct($productId)
             );

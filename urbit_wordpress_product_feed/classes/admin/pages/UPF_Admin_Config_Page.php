@@ -107,6 +107,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'admin/fields/multiselect',
             [
                 'name'     => UPF_Config::CONFIG_KEY . '[filter][categories][]',
+                'class' => 'collects-config',
                 'size'     => count($this->getCategoriesWithSelected()),
                 'elements' => $this->getCategoriesWithSelected(),
             ]
@@ -119,9 +120,21 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'admin/fields/multiselect',
             [
                 'name'     => UPF_Config::CONFIG_KEY . '[filter][tags][]',
+                'class' => 'tags-config',
                 'size'     => count($this->getTagsWithSelected()),
                 'elements' => $this->getTagsWithSelected(),
             ]
+        ));
+
+        $filterSection->addField(new UPF_Admin_Settings_Field(
+            'urbit_product_filter_product_field',
+            'Product ID',
+            $filterSection->getPageId(),
+            'admin/fields/fourth_filter',
+            array(
+                'name' => UPF_Config::CONFIG_KEY . '[filter][product][]',
+                'elements' => $this->getProducts()
+            )
         ));
 
         $filterSection->registerSection();
@@ -161,6 +174,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'admin/fields/multiselect',
             [
                 'name'     => UPF_Config::CONFIG_KEY . '[attributes][additional][]',
+                'class' => 'addattr-config',
                 'elements' => $this->selectedAdditionAttributes($this->getAttributes('')),
                 'size'     => '10',
             ]
@@ -180,10 +194,10 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
 
         $selectedCountries = $this->core->getConfig()->getSelect("filter/countries", []);
 
+        $result = [];
+
         foreach ($countries as $code => $country) {
             $tax = WC_Tax::find_rates(['country' => $code]);
-
-            $result = [];
 
             if (!empty($tax)) {
                 $param = '';
@@ -203,6 +217,34 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
         return $result;
     }
 
+    protected function getProducts()
+    {
+        $pf = new WC_Product_Factory();
+        $selectedProducts = $this->core->getConfig()->getSelect("filter/product", []);
+        $selected = array();
+        foreach ($selectedProducts as $post)
+            array_push($selected, $pf->get_product($post));
+        $selectedTags = $this->core->getConfig()->getSelect("filter/tags", []);
+        $selectedCategories = $this->core->getConfig()->getSelect("filter/categories", []);
+        $stock = esc_attr($this->getConfig("filter/stock"));
+        $query_object = $this->core->getQuery();
+        $query_result = $query_object->productsQuery(['categories' => $selectedCategories, 'tags' => $selectedTags, 'stock' => $stock]);
+        $product_posts = $query_result->get_posts();
+        $products = array();
+        foreach ($product_posts as $post)
+        {
+            $temp = $pf->get_product($post);
+            if(!in_array((string)$temp->get_id(), $selectedProducts))
+                array_push($products, $temp);
+        }
+        $result = array(
+            'products' => $products,
+            'selected' => $selected
+        );
+
+        return $result;
+    }
+
     /**
      * define selected items
      * @param  array $attributes
@@ -211,6 +253,8 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
     protected function selectedAdditionAttributes($attributes)
     {
         $selectedAttributes = $this->core->getConfig()->getSelect("attributes/additional", []);
+
+        $result = [];
 
         foreach ($attributes as $attribute) {
 
@@ -305,6 +349,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
     }
 
     /**
+     * @param $key
      * @return array
      */
     public function getAttributes($key)
@@ -348,6 +393,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
      * Get config param
      * @param string $name
      * @return mixed
+     * @throws Exception
      */
     protected function getConfig($name)
     {
