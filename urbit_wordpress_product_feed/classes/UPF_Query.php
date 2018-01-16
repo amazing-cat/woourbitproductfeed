@@ -1,6 +1,6 @@
 <?php
 
-if (!defined( 'URBIT_PRODUCT_FEED_PLUGIN_DIR' )) {
+if (!defined('URBIT_PRODUCT_FEED_PLUGIN_DIR')) {
     exit;
 }
 
@@ -18,27 +18,40 @@ class UPF_Query
     public function __construct(UPF_Core $core)
     {
         $this->core = $core;
-        add_action( 'wp_ajax_filter_handler', array($this, 'filter_handler') );
+        add_action('wp_ajax_filter_handler', array($this, 'filter_handler'));
     }
 
-    function filter_handler() {
-        $selectedTags = $_POST['tags'];
-        $selectedCollects = $_POST['collects'];
-        $stock = $_POST['stock'];
-        $result = $_POST['result'];
-        $filter_query = $this->productsQuery(['categories' => $selectedCollects, 'tags' => $selectedTags, 'stock' => $stock]);
+    public function filter_handler()
+    {
+        $selectedTags = isset($_POST['tags']) ? $_POST['tags'] : null;
+        $selectedCollects = isset($_POST['collects']) ? $_POST['collects'] : null;
+        $stock = isset($_POST['stock']) ? $_POST['stock'] : null;
+        $result = isset($_POST['result']) ? $_POST['result'] : null;
+
+        $filter_query = $this->productsQuery(array(
+            'categories' => $selectedCollects,
+            'tags'       => $selectedTags,
+            'stock'      => $stock,
+        ));
+
         $product_posts = $filter_query->get_posts();
         $products = array();
         $pf = new WC_Product_Factory();
-        foreach ($product_posts as $post)
-        {
+
+        foreach ($product_posts as $post) {
             $temp = $pf->get_product($post);
-            if(!in_array((string)$temp->get_id(), $result))
-                array_push($products, ['product_id' => $temp->get_id(), 'title' => $temp->get_name()]);
+
+            if (!in_array((string)$temp->get_id(), $result)) {
+                array_push($products, array(
+                    'product_id' => $temp->get_id(),
+                    'title' => $temp->get_name()
+                ));
+            }
         }
+
         $return = array(
-            'message'  => 'Ok!',
-            'result' => $products
+            'message' => 'Ok!',
+            'result'  => $products,
         );
 
         wp_send_json($return);
@@ -50,7 +63,7 @@ class UPF_Query
      * @param array $args
      * @return WP_Query
      */
-    function productsQuery($args = array())
+    public function productsQuery($args = array())
     {
         // Set base query arguments
         $queryArgs = array(
@@ -65,9 +78,9 @@ class UPF_Query
         if (!empty($args['categories'])) {
             $queryArgs['tax_query']['relation'] = 'OR';
             $queryArgs['tax_query'][] = array(
-                'taxonomy'  => 'product_cat',
-                'field'     => 'term_id',
-                'terms'     => $args['categories']
+                'taxonomy' => 'product_cat',
+                'field'    => 'term_id',
+                'terms'    => $args['categories'],
             );
         }
 
@@ -75,9 +88,9 @@ class UPF_Query
         if (!empty($args['tags'])) {
             $queryArgs['tax_query']['relation'] = 'OR';
             $queryArgs['tax_query'][] = array(
-                'taxonomy'  => 'product_tag',
-                'field'     => 'term_id',
-                'terms'     => $args['tags']
+                'taxonomy' => 'product_tag',
+                'field'    => 'term_id',
+                'terms'    => $args['tags'],
             );
         }
 
@@ -85,10 +98,10 @@ class UPF_Query
         if (!empty($args['stock']) && $args['stock'] > 0) {
             $queryArgs['meta_query']['relation'] = 'AND';
             $queryArgs['meta_query'][] = array(
-                'key'       => '_stock',
-                'value'     => (int) $args['stock'],
-                'compare'   => '>=',
-                'type'      => 'NUMERIC',
+                'key'     => '_stock',
+                'value'   => (int)$args['stock'],
+                'compare' => '>=',
+                'type'    => 'NUMERIC',
             );
         }
 
@@ -105,20 +118,20 @@ class UPF_Query
         if (!empty($dimension['from'])) {
             $queryArgs['meta_query']['relation'] = 'AND';
             $queryArgs['meta_query'][] = array(
-                'key'       => '_' . $key,
-                'value'     => (int) $dimension['from'],
-                'compare'   => '>=',
-                'type'      => 'NUMERIC',
+                'key'     => '_' . $key,
+                'value'   => (int)$dimension['from'],
+                'compare' => '>=',
+                'type'    => 'NUMERIC',
             );
         }
 
         if (!empty($dimension['to'])) {
             $queryArgs['meta_query']['relation'] = 'AND';
             $queryArgs['meta_query'][] = array(
-                'key'       => '_' . $key,
-                'value'     => (int) $dimension['to'],
-                'compare'   => '<=',
-                'type'      => 'NUMERIC',
+                'key'     => '_' . $key,
+                'value'   => (int)$dimension['to'],
+                'compare' => '<=',
+                'type'    => 'NUMERIC',
             );
         }
     }

@@ -4,12 +4,14 @@ if (!defined( 'URBIT_PRODUCT_FEED_PLUGIN_DIR' )) {
     exit;
 }
 
+define("__UPF_CACHE__CACHE_DIR_CONST", URBIT_PRODUCT_FEED_PLUGIN_DIR . '/cache');
+
 class UPF_Cache
 {
     /**
      * Cache directory
      */
-    const CACHE_DIR = URBIT_PRODUCT_FEED_PLUGIN_DIR . '/cache';
+    const CACHE_DIR = __UPF_CACHE__CACHE_DIR_CONST;
 
     /**
      * Cache file name suffix
@@ -68,10 +70,10 @@ class UPF_Cache
      *
      * @param $cacheFile
      * @return bool
+     * @throws Exception
      */
     public function checkFeedCacheExpired($cacheFile)
     {
-    	return true;
         if (!$cacheFile) {
             return true;
         }

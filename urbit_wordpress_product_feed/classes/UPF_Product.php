@@ -49,7 +49,7 @@ class UPF_Product
     /**
      * @var array
      */
-    protected $data = [];
+    protected $data = array();
 
     /**
      * UPF_Product constructor.
@@ -102,13 +102,13 @@ class UPF_Product
     public function getVariables()
     {
         if (!$this->isVariable) {
-            return [];
+            return array();
         }
 
         /** @var WC_Product_Variable $product */
         $product = $this->product;
 
-        $childs = [];
+        $childs = array();
 
         foreach ($product->get_visible_children() as $childID) {
             $childs[] = new UPF_Product($this->core, new WC_Product_Variation($childID));
@@ -120,6 +120,7 @@ class UPF_Product
     /**
      * Process product data
      * @return bool
+     * @throws Exception
      */
     public function process()
     {
@@ -133,18 +134,24 @@ class UPF_Product
 
         if ($this->isVariation && !$sku) {
             $parentData = $product->get_parent_data();
-            $sku = $parentData['sku'] ? $parentData['sku'] . '-' . $product->get_id() : false;
         }
 
-        $this->id = (string)($sku ? $sku : "product_" . $product->get_id());
-        $this->name = $product->get_title();
-        $this->description = $product->get_description();
+        $config_main_attrs = array(
+            'id' => $this->core->getConfig()->get("attributes/id", false),
+            'name' => $this->core->getConfig()->get("attributes/name", false),
+            'description' => $this->core->getConfig()->get("attributes/description", false),
+        );
+
+        $this->id = $this->resolveAttribute($config_main_attrs['id'], $product);
+        $this->name = $this->resolveAttribute($config_main_attrs['name'], $product);
+        $this->description = $this->resolveAttribute($config_main_attrs['description'], $product);
         $this->link = get_permalink($product->get_id());
 
         $this->processPrices();
         $this->processCategories();
         $this->processImages();
         $this->processAttributes();
+        $this->processDimensions();
         $this->processConfigurableFields();
 
         return true;
@@ -160,23 +167,23 @@ class UPF_Product
         $regular = $this->product->get_regular_price();
         $value = $regular + $regular * $tax;
 
-        $prices = [
-	        [
+        $prices = array(
+            array(
 		        'currency' => $currency,
-		        'value'    => (int)($value * 100),
+		        'value'    => (int) ($value * 100),
 		        'type'     => 'regular',
                 'vat'      => $tax * 10000
-	        ]
-        ];
+            ),
+        );
 
         if ($sale = $this->product->get_sale_price()) {
             $sale += $sale * $tax;
-            $prices[] = [
+            $prices[] = array(
                 'currency' => $currency,
-                'value'    => (int)($sale),
+                'value'    => (int) $sale,
                 'type'     => 'sale',
                 'vat'      => $tax * 10000,
-            ];
+            );
         }
 
         $this->prices = $prices;
@@ -185,17 +192,25 @@ class UPF_Product
     /**
      * Tax handler
      */
-    private function getTax()
+    protected function getTax()
     {
-        $code = $this->core->getConfig()->getSelect("filter/countries", []);
-        $country = WC_Tax::find_rates(['country' => $code[0]]);
+        $code = $this->core->getConfig()->getSelect("filter/countries", array());
+
+        $country = WC_Tax::find_rates(array(
+            'country' => $code[0],
+        ));
+
         if (count($country) == 0) {
             if (count(WC_Tax::get_base_tax_rates()) == 0) {
                 return 0;
             }
+
             $country = WC_Tax::get_base_tax_rates();
         }
-        $unformatted_tax = array_pop($country)['rate'];
+
+        $lastCountry = array_pop($country);
+
+        $unformatted_tax = $lastCountry['rate'];
         $tax = number_format($unformatted_tax, 2, '.', '') / 100;
 
         return $tax;
@@ -206,7 +221,7 @@ class UPF_Product
      */
     protected function processCategories()
     {
-        $categories = [];
+        $categories = array();
         $categoryIds = $this->product->get_category_ids();
 
         foreach ($categoryIds as $categoryId) {
@@ -226,7 +241,7 @@ class UPF_Product
      * @param array &$categories
      * @return bool
      */
-    private function processCategoryWithParent($categoryID, &$categories)
+    protected function processCategoryWithParent($categoryID, &$categories)
     {
         $term = get_term_by('id', $categoryID, 'product_cat');
 
@@ -238,10 +253,10 @@ class UPF_Product
             return true;
         }
 
-        $category = [
+        $category = array(
             'id'   => $term->term_id,
             'name' => $term->name,
-        ];
+        );
 
         if ($term->parent && $this->processCategoryWithParent($term->parent, $categories)) {
             $category['parent_id'] = $term->parent;
@@ -257,39 +272,47 @@ class UPF_Product
      */
     protected function processDimensions()
     {
-        $dimensionUnit = get_option('woocommerce_dimension_unit');
-        $weightUnit = get_option('woocommerce_weight_unit');
+        $config_dimension_attrs = array(
+            'height_val' => $this->core->getConfig()->get("attributes/heightValue", false),
+            'height_unit' => $this->core->getConfig()->get("attributes/heightUnit", false),
+            'length_val' => $this->core->getConfig()->get("attributes/lengthValue", false),
+            'length_unit' => $this->core->getConfig()->get("attributes/lengthUnit", false),
+            'width_val' => $this->core->getConfig()->get("attributes/widthValue", false),
+            'width_unit' => $this->core->getConfig()->get("attributes/widthUnit", false),
+            'weight_val' => $this->core->getConfig()->get("attributes/wightValue", false),
+            'weight_unit' => $this->core->getConfig()->get("attributes/weightUnit", false),
+        );
 
         $product = $this->product;
 
-        $dimensions = [];
+        $dimensions = array();
 
-        if ($height = $product->get_height()) {
-            $dimensions['height'] = [
+        if ($height = $this->resolveAttribute($config_dimension_attrs['height_val'], $product)) {
+            $dimensions['height'] = array(
                 'value' => $height,
-                'unit'  => $dimensionUnit,
-            ];
+                'unit'  => $this->resolveAttribute($config_dimension_attrs['height_unit'], $product),
+            );
         }
 
-        if ($length = $product->get_length()) {
-            $dimensions['length'] = [
+        if ($length = $this->resolveAttribute($config_dimension_attrs['length_val'], $product)) {
+            $dimensions['length'] = array(
                 'value' => $length,
-                'unit'  => $dimensionUnit,
-            ];
+                'unit'  => $this->resolveAttribute($config_dimension_attrs['length_unit'], $product),
+            );
         }
 
-        if ($width = $product->get_width()) {
-            $dimensions['width'] = [
+        if ($width = $this->resolveAttribute($config_dimension_attrs['width_val'], $product)) {
+            $dimensions['width'] = array(
                 'value' => $width,
-                'unit'  => $dimensionUnit,
-            ];
+                'unit'  => $this->resolveAttribute($config_dimension_attrs['width_unit'], $product),
+            );
         }
 
-        if ($weight = $product->get_weight()) {
-            $dimensions['weight'] = [
+        if ($weight = $this->resolveAttribute($config_dimension_attrs['weight_val'], $product)) {
+            $dimensions['weight'] = array(
                 'value' => $weight,
-                'unit'  => $weightUnit,
-            ];
+                'unit'  => $this->resolveAttribute($config_dimension_attrs['weight_unit'], $product),
+            );
         }
 
         if (!empty($dimensions)) {
@@ -312,7 +335,7 @@ class UPF_Product
         }
 
         // Process additional images
-        $additionalImages = [];
+        $additionalImages = array();
         $wpImageIds = $product->get_gallery_image_ids();
 
         foreach ($wpImageIds as $imageId) {
@@ -335,7 +358,7 @@ class UPF_Product
      */
     protected function processAttributes()
     {
-        $attributes = $this->core->getConfig()->getSelect("attributes/additional", []);
+        $attributes = $this->core->getConfig()->getSelect("attributes/additional", array());
 
         $product = $this->product;
 
@@ -345,12 +368,11 @@ class UPF_Product
             $attr = $product->get_attribute($attribute_name);
 
             if ($attr) {
-                $additional_attributes[] = [
+                $additional_attributes[] = array(
                     'name'  => $attribute_name,
                     'type'  => 'string',
-                    // 'unit' => null,
                     'value' => $attr,
-                ];
+                );
             }
         }
 
@@ -364,14 +386,14 @@ class UPF_Product
      */
     protected function processConfigurableFields()
     {
-        foreach ([
+        foreach (array(
             'color', 'gender', 'size', 'material', 'pattern',
             'age group', 'condition', 'sizeType', 'sizeSystem',
-        ] as $name) {
+        ) as $name) {
             $key = str_replace(" ", "_", $name);
 
             $attribute_name = $this->core->getConfig()->get("attributes/{$key}", false);
-            $attribute_value = $this->product->get_attribute($attribute_name);
+            $attribute_value = $this->resolveAttribute($attribute_name, $this->product);
 
             if ($attribute_name != 'Not selected' && $attribute_value) {
                 $this->$key = $attribute_value;
@@ -379,9 +401,31 @@ class UPF_Product
         }
     }
 
+    protected function resolveAttribute($attribute, $product)
+    {
+        $parsed_attr = explode('.', $attribute);
+        $type = $parsed_attr[0];
+        $name = $parsed_attr[1];
+
+        switch ($type) {
+            case 'calc':
+                $result = call_user_func(array($product, 'get_' . $name));
+                break;
+            case 'db':
+                $result = get_post_meta($product->id, $name);
+                break;
+            default:
+                $result = $product->get_attribute($name);
+                break;
+        }
+
+        return $result;
+    }
+
     /**
      * Get product data for feed
      * @return array
+     * @throws Exception
      */
     public function toArray()
     {

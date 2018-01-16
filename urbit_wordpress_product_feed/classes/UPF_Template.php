@@ -51,12 +51,13 @@ class UPF_Template extends UPF_Template_Abstract
      *
      * @param string $template
      * @return string
+     * @throws Exception
      */
     public function filter_template_include($template)
     {
         if (is_page(self::POST_NAME)) {
             $this->core->getFeed()->generate(
-                $this->core->getConfig()->get('filter', [])
+                $this->core->getConfig()->get('filter', array())
             );
 
             die();

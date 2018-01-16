@@ -86,6 +86,7 @@ class UPF_Config
      * @param string $name
      * @param mixed $default
      * @return array
+     * @throws Exception
      */
     public function getSelect($name, $default = null)
     {
@@ -119,7 +120,7 @@ class UPF_Config
 
         if ($param !== false) {
             if (!isset(self::$config[$name]) && $create) {
-                self::$config[$name] = [];
+                self::$config[$name] = array();
             }
 
             if (!isset(self::$config[$name][$param]) && !$create) {

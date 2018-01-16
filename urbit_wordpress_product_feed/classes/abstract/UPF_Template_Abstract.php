@@ -4,6 +4,8 @@ if (!defined( 'URBIT_PRODUCT_FEED_PLUGIN_DIR' )) {
     exit;
 }
 
+define("__UPF_TEMPLATE_ABSTRACT__TEMPLATES_DIR", URBIT_PRODUCT_FEED_PLUGIN_DIR . '/templates');
+
 /**
  * Class UPF_Template_Abstract
  */
@@ -17,7 +19,7 @@ abstract class UPF_Template_Abstract
     /**
      * Templates directory
      */
-    const TEMPLATES_DIR = URBIT_PRODUCT_FEED_PLUGIN_DIR . '/templates';
+    const TEMPLATES_DIR = __UPF_TEMPLATE_ABSTRACT__TEMPLATES_DIR;
 
     /**
      * @var string
@@ -72,10 +74,6 @@ abstract class UPF_Template_Abstract
     public function printTemplate($vars = array(), $template = null)
     {
         $templatePath = static::TEMPLATES_DIR . '/' . ($template ? $template : $this->template) . '.php';
-
-        /*echo "<pre>";
-        print_r($templatePath);
-        print_r($vars);*/
 
         if (is_file($templatePath)) {
             if (!empty($vars)) {

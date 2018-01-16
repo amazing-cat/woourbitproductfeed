@@ -21,7 +21,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
     /**
      * @var array
      */
-    protected $viewVars = [];
+    protected $viewVars = array();
 
     /**
      * Init menu element
@@ -36,7 +36,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
         );
 
         //init hooks
-        add_action('admin_init', [$this, 'registerSettings']);
+        add_action('admin_init', array($this, 'registerSettings'));
     }
 
     /**
@@ -51,11 +51,12 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
 
         //add sections to view
         $this->viewVars['option_group'] = $optionGroup;
-        $this->viewVars['sections'] = [];
+        $this->viewVars['sections'] = array();
 
         $this->initSectionCron();
         $this->initSectionFilter();
         $this->initSectionAttributes();
+        $this->initSectionDimensions();
     }
 
     protected function initSectionCron()
@@ -67,11 +68,11 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'Cache Duration (in hours)',
             $cacheSection->getPageId(),
             'admin/fields/input',
-            [
+            array(
                 'type'  => 'number',
                 'name'  => UPF_Config::CONFIG_KEY . '[cron][cache_duration]',
                 'value' => esc_attr($this->getConfig("cron/cache_duration", 1)),
-            ]
+            )
         ));
 
         $cacheSection->registerSection();
@@ -87,17 +88,17 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'Feed Country',
             $filterSection->getPageId(),
             'admin/fields/select',
-            [
+            array(
                 'name'     => UPF_Config::CONFIG_KEY . '[filter][countries][]',
                 'size'     => count($this->getCountries()),
-                'elements' => array_merge([
-                    0 => [
+                'elements' => array_merge(array(
+                    0 => array(
                         'value' => 0,
                         'param' => '',
                         'text'  => 'Default',
-                    ],
-                ], $this->getCountries()),
-            ]
+                    ),
+                ), $this->getCountries()),
+            )
         ));
 
         $filterSection->addField(new UPF_Admin_Settings_Field(
@@ -105,12 +106,12 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'Categories',
             $filterSection->getPageId(),
             'admin/fields/multiselect',
-            [
+            array(
                 'name'     => UPF_Config::CONFIG_KEY . '[filter][categories][]',
-                'class' => 'collects-config',
+                'class'    => 'collects-config',
                 'size'     => count($this->getCategoriesWithSelected()),
                 'elements' => $this->getCategoriesWithSelected(),
-            ]
+            )
         ));
 
         $filterSection->addField(new UPF_Admin_Settings_Field(
@@ -118,12 +119,12 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'Tags',
             $filterSection->getPageId(),
             'admin/fields/multiselect',
-            [
+            array(
                 'name'     => UPF_Config::CONFIG_KEY . '[filter][tags][]',
-                'class' => 'tags-config',
+                'class'    => 'tags-config',
                 'size'     => count($this->getTagsWithSelected()),
                 'elements' => $this->getTagsWithSelected(),
-            ]
+            )
         ));
 
         $filterSection->addField(new UPF_Admin_Settings_Field(
@@ -132,8 +133,8 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             $filterSection->getPageId(),
             'admin/fields/fourth_filter',
             array(
-                'name' => UPF_Config::CONFIG_KEY . '[filter][product][]',
-                'elements' => $this->getProducts()
+                'name'     => UPF_Config::CONFIG_KEY . '[filter][product][]',
+                'elements' => $this->getProducts(),
             )
         ));
 
@@ -145,7 +146,21 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
     {
         $attributesSection = new UPF_Admin_Settings_Section('productfeed_attributes', 'Product Attributes');
 
-        foreach (['size', 'sizeType', 'sizeSystem', 'color', 'gender', 'material', 'pattern', 'age group', 'condition'] as $name) {
+        $product_ids = $this->getAllProducts();
+
+        $attrNames = array(
+            'size',
+            'sizeType',
+            'sizeSystem',
+            'color',
+            'gender',
+            'material',
+            'pattern',
+            'age group',
+            'condition',
+        );
+
+        foreach ($attrNames as $name) {
             $key = str_replace(" ", "_", $name);
             $name = $this->splitAtUpperCase($name);
 
@@ -154,16 +169,21 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
                 ucfirst($name),
                 $attributesSection->getPageId(),
                 'admin/fields/select',
-                [
+                array(
                     'name'     => UPF_Config::CONFIG_KEY . "[attributes][{$key}]",
-                    'elements' => array_merge([
-                        '' => [
-                            'value' => '',
-                            'text'  => 'Not selected',
-                        ],
-                    ], $this->getAttributes($key)),
+                    'elements' => array_merge(
+                        array(
+                            '' => array(
+                                'value' => '',
+                                'text'  => '------None------',
+                            ),
+                        ),
+                        $this->getCalculatedAttributes($key),
+                        $this->getDbAttributes($product_ids, $key),
+                        $this->getAttributes($key)
+                    ),
                     'value'    => $this->getConfig("attributes/{$key}"),
-                ]
+                )
             ));
         }
 
@@ -172,16 +192,69 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             'Additional attributes',
             $attributesSection->getPageId(),
             'admin/fields/multiselect',
-            [
+            array(
                 'name'     => UPF_Config::CONFIG_KEY . '[attributes][additional][]',
-                'class' => 'addattr-config',
+                'class'    => 'addattr-config',
                 'elements' => $this->selectedAdditionAttributes($this->getAttributes('')),
                 'size'     => '10',
-            ]
+            )
         ));
 
         $attributesSection->registerSection();
         $this->viewVars['sections'][] = $attributesSection;
+    }
+
+    protected function initSectionDimensions()
+    {
+        $dimensionsSection = new UPF_Admin_Settings_Section('productfeed_dimensions', 'Product Dimensions');
+
+        $product_ids = $this->getAllProducts();
+
+        $fields = array(
+            'name',
+            'description',
+            'id',
+            'gtin',
+            'mpn',
+            'heightValue',
+            'heightUnit',
+            'lengthValue',
+            'lengthUnit',
+            'widthValue',
+            'widthUnit',
+            'weightValue',
+            'weightUnit',
+        );
+
+        foreach ($fields as $name) {
+            $key = str_replace(" ", "_", $name);
+            $name = $this->splitAtUpperCase($name);
+
+            $dimensionsSection->addField(new UPF_Admin_Settings_Field(
+                "urbit_product_attributes_{$key}_field",
+                ucfirst($name),
+                $dimensionsSection->getPageId(),
+                'admin/fields/select',
+                array(
+                    'name'     => UPF_Config::CONFIG_KEY . "[attributes][{$key}]",
+                    'elements' => array_merge(
+                        array(
+                            '' => array(
+                                'value' => '',
+                                'text'  => '------None------',
+                            ),
+                        ),
+                        $this->getCalculatedAttributes($key),
+                        $this->getDbAttributes($product_ids, $key),
+                        $this->getAttributes($key)
+                    ),
+                    'value'    => $this->getConfig("attributes/{$key}"),
+                )
+            ));
+        }
+
+        $dimensionsSection->registerSection();
+        $this->viewVars['sections'][] = $dimensionsSection;
     }
 
     /**
@@ -192,12 +265,14 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
         $countries_obj = new WC_Countries();
         $countries = $countries_obj->get_countries();
 
-        $selectedCountries = $this->core->getConfig()->getSelect("filter/countries", []);
+        $selectedCountries = $this->core->getConfig()->getSelect("filter/countries", array());
 
-        $result = [];
+        $result = array();
 
         foreach ($countries as $code => $country) {
-            $tax = WC_Tax::find_rates(['country' => $code]);
+            $tax = WC_Tax::find_rates(array(
+                'country' => $code,
+            ));
 
             if (!empty($tax)) {
                 $param = '';
@@ -206,40 +281,58 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
                     $param = in_array($code, $selectedCountries) ? 'selected="selected"' : '';
                 }
 
-                $result[] = [
+                $lastTax = array_pop($tax);
+
+                $result[] = array(
                     'value' => $code,
                     'param' => $param,
-                    'text'  => $country . ' - ' . number_format((array_pop($tax)['rate']), 2, '.', '') . '%',
-                ];
+                    'text'  => $country . ' - ' . number_format($lastTax['rate'], 2, '.', '') . '%',
+                );
             }
         }
 
         return $result;
     }
 
+    /**
+     * @return array
+     * @throws Exception
+     */
     protected function getProducts()
     {
         $pf = new WC_Product_Factory();
-        $selectedProducts = $this->core->getConfig()->getSelect("filter/product", []);
+
+        $selectedProducts = $this->core->getConfig()->getSelect("filter/product", array());
         $selected = array();
-        foreach ($selectedProducts as $post)
+
+        foreach ($selectedProducts as $post) {
             array_push($selected, $pf->get_product($post));
-        $selectedTags = $this->core->getConfig()->getSelect("filter/tags", []);
-        $selectedCategories = $this->core->getConfig()->getSelect("filter/categories", []);
+        }
+
+        $selectedTags = $this->core->getConfig()->getSelect("filter/tags", array());
+        $selectedCategories = $this->core->getConfig()->getSelect("filter/categories", array());
         $stock = esc_attr($this->getConfig("filter/stock"));
-        $query_object = $this->core->getQuery();
-        $query_result = $query_object->productsQuery(['categories' => $selectedCategories, 'tags' => $selectedTags, 'stock' => $stock]);
+
+        $query_result = $this->core->getQuery()->productsQuery(array(
+            'categories' => $selectedCategories,
+            'tags' => $selectedTags,
+            'stock' => $stock,
+        ));
+
         $product_posts = $query_result->get_posts();
         $products = array();
-        foreach ($product_posts as $post)
-        {
+
+        foreach ($product_posts as $post) {
             $temp = $pf->get_product($post);
-            if(!in_array((string)$temp->get_id(), $selectedProducts))
+
+            if (!in_array((string) $temp->get_id(), $selectedProducts)) {
                 array_push($products, $temp);
+            }
         }
+
         $result = array(
             'products' => $products,
-            'selected' => $selected
+            'selected' => $selected,
         );
 
         return $result;
@@ -252,23 +345,16 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
      */
     protected function selectedAdditionAttributes($attributes)
     {
-        $selectedAttributes = $this->core->getConfig()->getSelect("attributes/additional", []);
+        $selectedAttributes = $this->core->getConfig()->getSelect("attributes/additional", array());
 
-        $result = [];
+        $result = array();
 
         foreach ($attributes as $attribute) {
-
-            $param = '';
-
-            if (!empty($selectedAttributes)) {
-                $param = in_array($attribute['text'], $selectedAttributes) ? 'selected="selected"' : '';
-            }
-
-            $result[] = [
+            $result[] = array(
                 'value' => $attribute['text'],
-                'param' => $param,
+                'param' => !empty($selectedAttributes) && in_array($attribute['text'], $selectedAttributes) ? 'selected="selected"' : '',
                 'text'  => $attribute['text'],
-            ];
+            );
         }
 
         return $result;
@@ -299,10 +385,12 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
      */
     protected function getCategoriesWithSelected()
     {
-        $result = [];
-        $categories = get_categories(['taxonomy' => 'product_cat']);
+        $result = array();
+        $categories = get_categories(array(
+            'taxonomy' => 'product_cat',
+        ));
 
-        $selectedCategories = $this->core->getConfig()->getSelect("filter/categories", []);
+        $selectedCategories = $this->core->getConfig()->getSelect("filter/categories", array());
 
         foreach ($categories as $category) {
             $param = '';
@@ -311,11 +399,11 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
                 $param = in_array($category->term_id, $selectedCategories) ? 'selected="selected"' : '';
             }
 
-            $result[] = [
+            $result[] = array(
                 'value' => $category->term_id,
                 'param' => $param,
                 'text'  => $category->cat_name,
-            ];
+            );
         }
 
         return $result;
@@ -326,10 +414,12 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
      */
     protected function getTagsWithSelected()
     {
-        $result = [];
-        $tags = get_terms(['taxonomy' => 'product_tag']);
+        $result = array();
+        $tags = get_terms(array(
+            'taxonomy' => 'product_tag',
+        ));
 
-        $selectedTags = $this->core->getConfig()->getSelect("filter/tags", []);
+        $selectedTags = $this->core->getConfig()->getSelect("filter/tags", array());
 
         foreach ($tags as $tag) {
             $param = '';
@@ -338,11 +428,11 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
                 $param = in_array($tag->term_id, $selectedTags) ? 'selected="selected"' : '';
             }
 
-            $result[] = [
+            $result[] = array(
                 'value' => $tag->term_id,
                 'param' => $param,
                 'text'  => $tag->name,
-            ];
+            );
         }
 
         return $result;
@@ -354,24 +444,158 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
      */
     public function getAttributes($key)
     {
-        $result = [];
+        $result = array(
+            array(
+                'value' => 'attr_empty',
+                'text' => '------ Features & Attributes ------',
+            ),
+        );
 
-        foreach (wc_get_attribute_taxonomies() as $tax) {
+        $taxonomies = wc_get_attribute_taxonomies();
+
+        foreach ($taxonomies as $tax) {
             $param = '';
-            $selected = $this->core->getConfig()->getSelect('attributes/' . $key, []);
+            $selected = $this->core->getConfig()->getSelect("attributes/{$key}" , array());
 
             if (!empty($selected)) {
                 $param = in_array($tax->attribute_name, $selected) ? 'selected="selected"' : '';
             }
 
-            $result[] = [
+            $result[] = array(
                 'value' => $tax->attribute_name,
                 'param' => $param,
                 'text'  => $tax->attribute_label,
-            ];
+            );
         }
 
         return $result;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getAllProducts()
+    {
+        $type = 'product';
+        $number = wp_count_posts($type);
+        $p_posts = get_posts(array(
+            'post_type' => $type,
+            'posts_per_page' => $number->publish,
+        ));
+
+        $ids_array = array();
+
+        foreach ($p_posts as $post) {
+            $ids_array[] = $post->ID;
+        }
+
+        return $ids_array;
+    }
+
+    /**
+     * @param $field_key
+     * @return array
+     */
+    protected function getCalculatedAttributes($field_key)
+    {
+        $exceptions = array(
+            'category_ids',
+            'tag_ids',
+            'gallery_image_ids',
+            'downloads',
+            'rating_counts',
+            'default_attributes',
+            'attributes',
+            'upsell_ids',
+            'cross_sell_ids',
+            'dimensions',
+            'date_on_sale_from',
+            'date_on_sale_to',
+            'date_created',
+            'date_modified',
+            'children',
+            'file',
+            'tags',
+            'gallery_attachment_ids',
+            'files',
+            'matching_variation',
+            'cross_sells',
+            'upsells',
+            'post_data',
+            'child',
+            'related_terms',
+            'related',
+            'variation_default_attributes',
+        );
+
+        $products_fields = array(
+            'calc_empty' => array(
+                'value' => 'calc.empty',
+                'text' => '------ Calculated ------',
+            ),
+        );
+
+        $methods = get_class_methods('WC_Product');
+
+        foreach ($methods as $method) {
+            if (strpos($method, 'get_') !== false) {
+                $method_name = str_replace('get_', '', $method);
+
+                if (!in_array($method_name, $products_fields) && !in_array($method_name, $exceptions)) {
+                    $selected = $this->core->getConfig()->getSelect("attributes/{$field_key}" , array());
+
+                    $selectKey = "calc.{$method_name}";
+
+                    $products_fields[$method_name] = array(
+                        'value' => $selectKey,
+                        'param' => !empty($selected) && $selectKey === $selected[0] ? 'selected="selected"' : '',
+                        'text' => str_replace('_', ' ', ucfirst($method_name)),
+                    );
+                }
+            }
+        }
+
+        return $products_fields;
+    }
+
+    /**
+     * @param $product_ids
+     * @param $field_key
+     * @return array
+     */
+    protected function getDbAttributes($product_ids, $field_key)
+    {
+        $exceptions = array(
+            '_product_attributes',
+        );
+
+        $post_meta_keys = array(
+            'db_empty' => array(
+                'value' => 'db.empty',
+                'text' => '------ Db Fields ------',
+            ),
+        );
+
+        foreach ($product_ids as $id) {
+            $m_post = get_post_meta($id);
+            $keys = array_keys($m_post);
+
+            foreach ($keys as $key) {
+                if (!in_array($key, $post_meta_keys) && !in_array($key, $exceptions)) {
+                    $selected = $this->core->getConfig()->getSelect("attributes/{$field_key}", array());
+
+                    $selectKey = "db.{$key}";
+
+                    $post_meta_keys[$key] = array(
+                        'value' => $selectKey,
+                        'param' => !empty($selected) && $selectKey === $selected[0] ? 'selected="selected"' : '',
+                        'text' => $key,
+                    );
+                }
+            }
+        }
+
+        return $post_meta_keys;
     }
 
     /**
@@ -381,7 +605,7 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
      * @param array $vars
      * @param string|null $template
      */
-    public function printTemplate($vars = [], $template = null)
+    public function printTemplate($vars = array(), $template = null)
     {
         $vars = array_merge((array)$vars, $this->viewVars);
 

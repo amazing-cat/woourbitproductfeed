@@ -33,12 +33,14 @@ class UPF_Admin_Pages
     public function __construct($pages)
     {
         foreach ($pages as $page) {
-            if ($page instanceof UPF_Admin_Page_Abstract && !empty($page->getChildPages())) {
+            $childs = $page->getChildPages();
+
+            if ($page instanceof UPF_Admin_Page_Abstract && !empty($childs)) {
                 $menuElement = $page->getMenuElement();
                 $this->pages[] = $page;
                 $this->menuElements[] = $menuElement;
 
-                foreach ($page->getChildPages() as $childPage) {
+                foreach ($childs as $childPage) {
                     $childPage->getMenuElement()->setParentMenuElement($menuElement);
                     $this->menuElements[] = $childPage->getMenuElement();
                 }
