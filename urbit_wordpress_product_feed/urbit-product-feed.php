@@ -33,7 +33,6 @@ if (is_admin()) {
         if ($hook != 'urbit_page_product-feed' && $hook != 'urbit-feed_page_product-feed') {
             return;
         }
-
         wp_enqueue_style('bootstrap_css', plugins_url('templates/admin/assets/css/bootstrap.min.css', __FILE__));
         wp_enqueue_style('config_css', plugins_url('templates/admin/assets/css/config.css', __FILE__));
         wp_enqueue_script('bootstrap_js', plugins_url('templates/admin/assets/js/bootstrap.js', __FILE__));
