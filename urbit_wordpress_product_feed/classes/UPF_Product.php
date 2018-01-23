@@ -279,7 +279,7 @@ class UPF_Product
             'length_unit' => $this->core->getConfig()->get("attributes/lengthUnit", false),
             'width_val' => $this->core->getConfig()->get("attributes/widthValue", false),
             'width_unit' => $this->core->getConfig()->get("attributes/widthUnit", false),
-            'weight_val' => $this->core->getConfig()->get("attributes/wightValue", false),
+            'weight_val' => $this->core->getConfig()->get("attributes/weightValue", false),
             'weight_unit' => $this->core->getConfig()->get("attributes/weightUnit", false),
         );
 
@@ -412,7 +412,10 @@ class UPF_Product
                 $result = call_user_func(array($product, 'get_' . $name));
                 break;
             case 'db':
-                $result = get_post_meta($product->id, $name);
+		if ($name == '_dimension_unit' || $name == '_weight_unit')
+		    $result = get_option('woocommerce' . $name);
+		else
+            	    $result = get_post_meta($product->id, $name);
                 break;
             default:
                 $result = $product->get_attribute($name);

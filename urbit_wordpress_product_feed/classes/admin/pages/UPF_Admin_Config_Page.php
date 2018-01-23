@@ -595,6 +595,22 @@ class UPF_Admin_Config_Page extends UPF_Admin_Page_Abstract
             }
         }
 
+	$keys = ['_dimension_unit', '_weight_unit'];
+
+	foreach ($keys as $key) {
+                if (!in_array($key, $post_meta_keys) && !in_array($key, $exceptions)) {
+                    $selected = $this->core->getConfig()->getSelect("attributes/{$field_key}", array());
+
+                    $selectKey = "db.{$key}";
+
+                    $post_meta_keys[$key] = array(
+                        'value' => $selectKey,
+                        'param' => !empty($selected) && $selectKey === $selected[0] ? 'selected="selected"' : '',
+                        'text' => $key,
+                    );
+                }
+        }
+
         return $post_meta_keys;
     }
 
